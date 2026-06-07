@@ -16,7 +16,7 @@
 #include "sig.h"
 #include "ndelay.h"
 
-#define USAGE " [-P] dir"
+#define USAGE " [-P] [-H] dir [log]"
 #define VERSION "$Id$"
 
 #define MAXSERVICES 1000
@@ -40,6 +40,7 @@ iopause_fd io[1];
 struct taia stamplog;
 int exitsoon =0;
 int pgrp =0;
+int termexit =1;
 
 void usage () { strerr_die4x(1, "usage: ", progname, USAGE, "\n"); }
 void fatal(char *m1, char *m2) {
@@ -51,7 +52,7 @@ void warn(char *m1, char *m2) {
 void warn3x(char *m1, char *m2, char *m3) {
   strerr_warn6("runsvdir ", svdir, ": warning: ", m1, m2, m3, 0);
 } 
-void s_term(int unused) { exitsoon =1; }
+void s_term(int unused) { exitsoon =termexit; }
 void s_hangup(int unused) { exitsoon =2; }
 
 void runsv(int no, char *name) {
@@ -172,19 +173,21 @@ int main(int argc, char **argv) {
   int i;
 
   progname =*argv++;
-  if (! argv || ! *argv) usage();
-  if (**argv == '-') {
-    switch (*(*argv +1)) {
-    case 'P': pgrp =1;
-    case '-': ++argv;
-    }
-    if (! argv || ! *argv) usage();
-  }
+  while (*argv && (*argv)[0] == '-') {
+    switch ((*argv)[1]) {
+    case 'P': pgrp =1; break;
+    case 'H': termexit =2; break;
+    case '-': break;
+    default: usage();
+     }
+    argv++;
+   }
+  if (!*argv) usage();
 
   sig_catch(sig_term, s_term);
   sig_catch(sig_hangup, s_hangup);
   svdir =*argv++;
-  if (argv && *argv) {
+  if (*argv) {
     rplog =*argv;
     if (setup_log() != 1) {
       rplog =0;
